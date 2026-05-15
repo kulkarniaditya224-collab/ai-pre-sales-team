@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>OutboundAI Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+--bg:#0d0d0d;--card:#161616;--border:#252525;
+--accent:#00ff88;--accent2:#00ccff;--danger:#ff4d4d;--warn:#ffaa00;
+--muted:#5a5a5a;--text:#e0e0e0;--text2:#aaa;
+--mono:'Courier New',monospace;--sans:'Segoe UI',system-ui,sans-serif;--r:8px;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);min-height:100vh;line-height:1.5;font-size:14px}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+header{background:var(--card);border-bottom:1px solid var(--border);padding:12px 24px;display:flex;align-items:center;gap:16px;position:sticky;top:0;z-index:100}
+header h1{font-size:20px;color:var(--accent);font-weight:700;white-space:nowrap}
+header .subtitle{color:var(--text2);font-size:12px}
+nav{display:flex;gap:4px;overflow-x:auto;padding:8px 24px;background:var(--card);border-bottom:1px solid var(--border)}
+nav button{background:none;border:1px solid transparent;color:var(--text2);padding:8px 14px;border-radius:var(--r);cursor:pointer;white-space:nowrap;font-size:13px;transition:all .2s}
+nav button:hover{color:var(--text);background:#1a1a1a}
+nav button.active{color:var(--accent);border-color:var(--accent);background:#0a1f12}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.tab-panel{display:none}
+.tab-panel.active{display:block}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px}
+.card h2{font-size:16px;margin-bottom:12px;color:var(--accent)}
+.card h3{font-size:14px;margin-bottom:8px;color:var(--text)}
+.grid{display:grid;gap:16px}
+.grid-2{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.grid-5{grid-template-columns:repeat(auto-fit,minmax(160px,1fr))}
+.kpi{text-align:center;padding:16px}
+.kpi .value{font-size:28px;font-weight:700;color:var(--accent)}
+.kpi .label{font-size:12px;color:var(--text2);margin-top:4px}
+label{display:block;font-size:12px;color:var(--text2);margin-bottom:4px;font-weight:600}
+input,select,textarea{width:100%;background:#111;border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--r);font-family:var(--sans);font-size:13px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+textarea{resize:vertical;min-height:80px;font-family:var(--mono);font-size:12px}
+button.btn{padding:8px 18px;border:none;border-radius:var(--r);cursor:pointer;font-size:13px;font-weight:600;transition:all .2s}
+.btn-primary{background:var(--accent);color:#000}
+.btn-primary:hover{background:#00cc6a}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#cc3333}
+.btn-secondary{background:var(--border);color:var(--text)}
+.btn-secondary:hover{background:#333}
+.btn-warn{background:var(--warn);color:#000}
+.btn-sm{padding:4px 10px;font-size:12px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:8px 10px;color:var(--text2);font-size:11px;text-transform:uppercase;border-bottom:1px solid var(--border)}
+td{padding:8px 10px;border-bottom:1px solid #1a1a1a}
+tr:hover{background:#1a1a1a}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-green{background:#0a2e1a;color:var(--accent)}
+.badge-red{background:#2e0a0a;color:var(--danger)}
+.badge-yellow{background:#2e2a0a;color:var(--warn)}
+.badge-blue{background:#0a1a2e;color:var(--accent2)}
+.badge-gray{background:#1a1a1a;color:var(--muted)}
+.form-row{display:flex;gap:12px;margin-bottom:12px}
+.form-row>*{flex:1}
+.form-group{margin-bottom:12px}
+.chip{display:inline-block;padding:3px 10px;border-radius:12px;font-size:11px;margin:2px;background:#1a1a1a;color:var(--text2)}
+.chip.ok{border:1px solid var(--accent);color:var(--accent)}
+.chip.warn{border:1px solid var(--warn);color:var(--warn)}
+.toast-container{position:fixed;top:16px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:10px 18px;border-radius:var(--r);font-size:13px;animation:fadeIn .3s;max-width:360px}
+.toast.ok{background:#0a2e1a;color:var(--accent);border:1px solid var(--accent)}
+.toast.err{background:#2e0a0a;color:var(--danger);border:1px solid var(--danger)}
+@keyframes fadeIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.progress-bar{width:100%;height:6px;background:var(--border);border-radius:3px;overflow:hidden;margin:8px 0}
+.progress-bar .fill{height:100%;background:var(--accent);transition:width .3s;border-radius:3px}
+.log-entry{font-family:var(--mono);font-size:12px;padding:4px 8px;border-bottom:1px solid #1a1a1a}
+.log-entry.error{color:var(--danger)}.log-entry.warning{color:var(--warn)}.log-entry.info{color:var(--text2)}
+.eye-toggle{cursor:pointer;background:none;border:none;color:var(--text2);font-size:14px;position:absolute;right:8px;top:50%;transform:translateY(-50%)}
+.input-wrap{position:relative}
+.input-wrap input{padding-right:32px}
+.hidden{display:none}
+.char-count{font-size:11px;color:var(--text2);text-align:right}
+canvas{max-height:260px}
+.drill-back{cursor:pointer;color:var(--accent2);font-size:13px;margin-bottom:12px;display:inline-block}
+.empty-state{text-align:center;padding:40px;color:var(--muted)}
+</style>
+</head>
+<body>
+<header>
+<h1>OutboundAI</h1>
+<span class="subtitle">AI Voice Calling Platform</span>
+</header>
+<nav id="nav">
+<button onclick="switchTab('stats')" data-tab="stats" class="active">&#x1F4CA; Stats</button>
+<button onclick="switchTab('call')" data-tab="call">&#x1F4DE; Single Call</button>
+<button onclick="switchTab('batch')" data-tab="batch">&#x1F4CB; Batch Call</button>
+<button onclick="switchTab('campaigns')" data-tab="campaigns">&#x1F680; Campaigns</button>
+<button onclick="switchTab('agents')" data-tab="agents">&#x1F916; Agents</button>
+<button onclick="switchTab('prompt')" data-tab="prompt">&#x270F;&#xFE0F; AI Prompt</button>
+<button onclick="switchTab('appointments')" data-tab="appointments">&#x1F4C5; Appointments</button>
+<button onclick="switchTab('calls')" data-tab="calls">&#x1F4DD; Call Logs</button>
+<button onclick="switchTab('crm')" data-tab="crm">&#x1F465; CRM</button>
+<button onclick="switchTab('settings')" data-tab="settings">&#x2699;&#xFE0F; Settings</button>
+<button onclick="switchTab('logs')" data-tab="logs">&#x1F4CB; Logs</button>
+<button onclick="switchTab('setup')" data-tab="setup">&#x1F527; Setup</button>
+</nav>
+<div class="container">
+
+<!-- STATS TAB -->
+<div id="tab-stats" class="tab-panel active">
+<div class="grid grid-5" id="kpi-grid">
+<div class="card kpi"><div class="value" id="kpi-total">0</div><div class="label">Total Calls</div></div>
+<div class="card kpi"><div class="value" id="kpi-booked">0</div><div class="label">Booked</div></div>
+<div class="card kpi"><div class="value" id="kpi-not-interested">0</div><div class="label">Not Interested</div></div>
+<div class="card kpi"><div class="value" id="kpi-rate">0%</div><div class="label">Booking Rate</div></div>
+<div class="card kpi"><div class="value" id="kpi-duration">0s</div><div class="label">Avg Duration</div></div>
+</div>
+<div id="live-config" class="card" style="margin-bottom:16px"><h3>Live Config</h3><div id="config-chips"></div></div>
+<div class="grid grid-3">
+<div class="card"><h3>Outcomes</h3><canvas id="chart-outcomes"></canvas></div>
+<div class="card"><h3>Calls (14 days)</h3><canvas id="chart-timeline"></canvas></div>
+<div class="card"><h3>Avg Duration by Outcome</h3><canvas id="chart-duration"></canvas></div>
+</div>
+</div>
+
+<!-- SINGLE CALL TAB -->
+<div id="tab-call" class="tab-panel">
+<div class="card">
+<h2>Place a Single Call</h2>
+<form id="call-form" onsubmit="return handleCall(event)">
+<div class="form-row">
+<div class="form-group"><label>Phone (E.164)</label><input id="f-phone" placeholder="+919876543210" required/></div>
+<div class="form-group"><label>Lead Name</label><input id="f-lead" placeholder="Shreyas Raj" value="there"/></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Business Name</label><input id="f-biz" value="our company"/></div>
+<div class="form-group"><label>Service Type</label><input id="f-svc" value="our service"/></div>
+</div>
+<div class="form-group"><label>Agent Profile</label><select id="f-agent-profile"><option value="">Default (no profile)</option></select></div>
+<div class="form-group"><label><input type="checkbox" id="f-custom-toggle" onchange="$('f-custom-wrap').classList.toggle('hidden')"/> Use custom prompt</label></div>
+<div id="f-custom-wrap" class="form-group hidden"><label>Custom System Prompt</label><textarea id="f-custom-prompt" rows="4"></textarea></div>
+<button type="submit" class="btn btn-primary">Dial Now</button>
+<span id="call-status" style="margin-left:12px;font-size:13px"></span>
+</form>
+</div>
+</div>
+
+<!-- BATCH CALL TAB -->
+<div id="tab-batch" class="tab-panel">
+<div class="card">
+<h2>Batch Call from CSV</h2>
+<div class="form-group"><label>Agent Profile</label><select id="bc-agent-profile"><option value="">Default (no profile)</option></select></div>
+<div class="form-row">
+<div class="form-group"><label>CSV File</label><input type="file" id="bc-file" accept=".csv"/></div>
+<div class="form-group"><label>Delay (seconds)</label><input type="number" id="bc-delay" value="3" min="1" max="60"/></div>
+</div>
+<button class="btn btn-secondary" onclick="parseCSV()">Parse CSV</button>
+<div id="bc-preview" class="hidden" style="margin-top:12px">
+<table><thead><tr><th>Phone</th><th>Lead Name</th><th>Business</th><th>Service</th></tr></thead><tbody id="bc-tbody"></tbody></table>
+<div style="margin-top:12px"><button class="btn btn-primary" onclick="startBatch()">Start Batch</button><span id="bc-status" style="margin-left:12px;font-size:13px"></span></div>
+<div class="progress-bar"><div class="fill" id="bc-progress" style="width:0"></div></div>
+</div>
+</div>
+</div>
+
+<!-- CAMPAIGNS TAB -->
+<div id="tab-campaigns" class="tab-panel">
+<div class="card">
+<h2>Create Campaign</h2>
+<div class="form-row">
+<div class="form-group"><label>Campaign Name</label><input id="camp-name" placeholder="Q1 Outreach"/></div>
+<div class="form-group"><label>Schedule</label><select id="camp-schedule"><option value="once">Once (run now)</option><option value="daily">Daily</option><option value="weekdays">Weekdays</option></select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Time</label><input type="time" id="camp-time" value="09:00"/></div>
+<div class="form-group"><label>Delay (s)</label><input type="number" id="camp-delay" value="3" min="1"/></div>
+</div>
+<div class="form-group"><label>Agent Profile</label><select id="camp-agent-profile"><option value="">Default (no profile)</option></select></div>
+<div class="form-group"><label><input type="checkbox" id="camp-prompt-toggle" onchange="$('camp-prompt-wrap').classList.toggle('hidden')"/> Custom prompt</label></div>
+<div id="camp-prompt-wrap" class="form-group hidden"><textarea id="camp-prompt" rows="3" placeholder="Custom system prompt..."></textarea></div>
+<div class="form-group"><label>CSV File</label><input type="file" id="camp-file" accept=".csv"/></div>
+<button class="btn btn-primary" onclick="createCampaign()">Create Campaign</button>
+</div>
+<div class="card">
+<h2>Campaigns</h2>
+<table><thead><tr><th>Name</th><th>Schedule</th><th>Contacts</th><th>Status</th><th>Dispatched</th><th>Failed</th><th>Actions</th></tr></thead><tbody id="camp-tbody"></tbody></table>
+</div>
+</div>
+
+<!-- AGENTS TAB -->
+<div id="tab-agents" class="tab-panel">
+<div class="card">
+<h2 id="agent-form-title">Create Agent Profile</h2>
+<input type="hidden" id="ap-edit-id"/>
+<div class="form-row">
+<div class="form-group"><label>Profile Name</label><input id="ap-name" placeholder="Sales Agent"/></div>
+<div class="form-group"><label>Voice</label><select id="ap-voice">
+<optgroup label="Female voices">
+<option value="Aoede">Aoede - warm, expressive</option><option value="Achernar">Achernar - soft &amp; clear</option>
+<option value="Autonoe">Autonoe - natural</option><option value="Callirrhoe">Callirrhoe - gentle</option>
+<option value="Despina">Despina - bright</option><option value="Erinome">Erinome - smooth</option>
+<option value="Gacrux">Gacrux - rich</option><option value="Kore">Kore - soft, calm</option>
+<option value="Laomedeia">Laomedeia - light</option><option value="Leda">Leda - clear</option>
+<option value="Pulcherrima">Pulcherrima - warm</option><option value="Sulafat">Sulafat - smooth</option>
+<option value="Vindemiatrix">Vindemiatrix - professional</option><option value="Zephyr">Zephyr - airy</option>
+</optgroup>
+<optgroup label="Male voices">
+<option value="Achird">Achird - clear</option><option value="Algenib">Algenib - strong</option>
+<option value="Algieba">Algieba - rich</option><option value="Alnilam">Alnilam - deep</option>
+<option value="Charon">Charon - calm, deep</option><option value="Enceladus">Enceladus - expressive</option>
+<option value="Fenrir">Fenrir - confident</option><option value="Iapetus">Iapetus - steady</option>
+<option value="Orus">Orus - warm</option><option value="Perseus">Perseus - clear</option>
+<option value="Puck">Puck - bright, energetic</option><option value="Rasalgethi">Rasalgethi - bold</option>
+<option value="Sadachbia">Sadachbia - natural</option><option value="Sadaltager">Sadaltager - smooth</option>
+<option value="Schedar">Schedar - professional</option><option value="Umbriel">Umbriel - deep, calm</option>
+<option value="Zubenelgenubi">Zubenelgenubi - resonant</option>
+</optgroup>
+</select></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Model</label><select id="ap-model">
+<option value="gemini-3.1-flash-live-preview">gemini-3.1-flash-live-preview (recommended)</option>
+<option value="gemini-2.5-flash-native-audio-preview-12-2025">gemini-2.5-flash-native-audio</option>
+</select></div>
+<div class="form-group"><label>Enabled Tools (JSON array, empty=all)</label><input id="ap-tools" placeholder='[]' value="[]"/></div>
+</div>
+<div class="form-group"><label>System Prompt</label><textarea id="ap-prompt" rows="4" placeholder="Custom prompt for this agent..."></textarea></div>
+<div class="form-group"><label><input type="checkbox" id="ap-default"/> Set as default profile</label></div>
+<div style="display:flex;gap:8px">
+<button class="btn btn-primary" onclick="saveAgentProfile()">Save Profile</button>
+<button class="btn btn-secondary" onclick="resetAgentForm()">Reset</button>
+</div>
+</div>
+<div class="card">
+<h2>Agent Profiles</h2>
+<table><thead><tr><th>Name</th><th>Voice</th><th>Model</th><th>Default</th><th>Actions</th></tr></thead><tbody id="ap-tbody"></tbody></table>
+</div>
+</div>
+
+<!-- PROMPT TAB -->
+<div id="tab-prompt" class="tab-panel">
+<div class="card">
+<h2>Global System Prompt</h2>
+<textarea id="prompt-editor" rows="20"></textarea>
+<div class="char-count"><span id="prompt-chars">0</span> characters</div>
+<div style="margin-top:12px;display:flex;gap:8px">
+<button class="btn btn-primary" onclick="savePrompt()">Save Prompt</button>
+<button class="btn btn-danger" onclick="resetPrompt()">Reset to Default</button>
+</div>
+</div>
+</div>
+
+<!-- APPOINTMENTS TAB -->
+<div id="tab-appointments" class="tab-panel">
+<div class="card">
+<h2>Appointments</h2>
+<div class="form-row" style="margin-bottom:12px">
+<div class="form-group"><label>Filter by Date</label><input type="date" id="appt-date" onchange="loadAppointments()"/></div>
+<div class="form-group" style="display:flex;align-items:flex-end"><button class="btn btn-secondary" onclick="$('appt-date').value='';loadAppointments()">Clear</button></div>
+</div>
+<table><thead><tr><th>Name</th><th>Phone</th><th>Date</th><th>Time</th><th>Service</th><th>Status</th><th>Actions</th></tr></thead><tbody id="appt-tbody"></tbody></table>
+</div>
+</div>
+
+<!-- CALL LOGS TAB -->
+<div id="tab-calls" class="tab-panel">
+<div class="card">
+<h2>Call Logs</h2>
+<table><thead><tr><th>Phone</th><th>Lead</th><th>Outcome</th><th>Reason</th><th>Duration</th><th>Time</th><th>Recording</th><th>Notes</th></tr></thead><tbody id="calls-tbody"></tbody></table>
+<div style="margin-top:12px;display:flex;gap:8px;justify-content:center">
+<button class="btn btn-secondary btn-sm" id="calls-prev" onclick="loadCalls(callsPage-1)">Prev</button>
+<span id="calls-page-info" style="font-size:13px;color:var(--text2);line-height:32px">Page 1</span>
+<button class="btn btn-secondary btn-sm" id="calls-next" onclick="loadCalls(callsPage+1)">Next</button>
+</div>
+</div>
+</div>
+
+<!-- CRM TAB -->
+<div id="tab-crm" class="tab-panel">
+<div class="card" id="crm-list-card">
+<h2>Contacts</h2>
+<table><thead><tr><th>Phone</th><th>Lead Name</th><th>Total Calls</th><th>Booked</th><th>Last Outcome</th><th>Last Call</th></tr></thead><tbody id="crm-tbody"></tbody></table>
+</div>
+<div class="card hidden" id="crm-detail-card">
+<span class="drill-back" onclick="closeCRMDetail()">&larr; Back to Contacts</span>
+<h2 id="crm-detail-title">Contact Detail</h2>
+<table><thead><tr><th>Outcome</th><th>Reason</th><th>Duration</th><th>Time</th><th>Notes</th></tr></thead><tbody id="crm-detail-tbody"></tbody></table>
+</div>
+</div>
+
+<!-- SETTINGS TAB -->
+<div id="tab-settings" class="tab-panel">
+<div class="card"><h2>LiveKit</h2>
+<div class="form-group"><label>LiveKit URL</label><input id="s-LIVEKIT_URL"/></div>
+<div class="form-group"><label>API Key</label><div class="input-wrap"><input id="s-LIVEKIT_API_KEY" type="password"/><button class="eye-toggle" onclick="toggleEye('s-LIVEKIT_API_KEY')">&#x1F441;</button></div></div>
+<div class="form-group"><label>API Secret</label><div class="input-wrap"><input id="s-LIVEKIT_API_SECRET" type="password"/><button class="eye-toggle" onclick="toggleEye('s-LIVEKIT_API_SECRET')">&#x1F441;</button></div></div>
+<button class="btn btn-primary" onclick="saveGroup('livekit')">Save LiveKit</button>
+</div>
+
+<div class="card"><h2>Google Gemini</h2>
+<div class="form-group"><label>API Key</label><div class="input-wrap"><input id="s-GOOGLE_API_KEY" type="password"/><button class="eye-toggle" onclick="toggleEye('s-GOOGLE_API_KEY')">&#x1F441;</button></div></div>
+<div class="form-row">
+<div class="form-group"><label>Model</label><select id="s-GEMINI_MODEL">
+<option value="gemini-3.1-flash-live-preview">gemini-3.1-flash-live-preview</option>
+<option value="gemini-2.5-flash-native-audio-preview-12-2025">gemini-2.5-flash-native-audio</option>
+</select></div>
+<div class="form-group"><label>Voice</label><select id="s-GEMINI_TTS_VOICE">
+<optgroup label="Female">
+<option value="Aoede">Aoede</option><option value="Achernar">Achernar</option><option value="Autonoe">Autonoe</option>
+<option value="Callirrhoe">Callirrhoe</option><option value="Despina">Despina</option><option value="Erinome">Erinome</option>
+<option value="Gacrux">Gacrux</option><option value="Kore">Kore</option><option value="Laomedeia">Laomedeia</option>
+<option value="Leda">Leda</option><option value="Pulcherrima">Pulcherrima</option><option value="Sulafat">Sulafat</option>
+<option value="Vindemiatrix">Vindemiatrix</option><option value="Zephyr">Zephyr</option>
+</optgroup>
+<optgroup label="Male">
+<option value="Achird">Achird</option><option value="Algenib">Algenib</option><option value="Algieba">Algieba</option>
+<option value="Alnilam">Alnilam</option><option value="Charon">Charon</option><option value="Enceladus">Enceladus</option>
+<option value="Fenrir">Fenrir</option><option value="Iapetus">Iapetus</option><option value="Orus">Orus</option>
+<option value="Perseus">Perseus</option><option value="Puck">Puck</option><option value="Rasalgethi">Rasalgethi</option>
+<option value="Sadachbia">Sadachbia</option><option value="Sadaltager">Sadaltager</option><option value="Schedar">Schedar</option>
+<option value="Umbriel">Umbriel</option><option value="Zubenelgenubi">Zubenelgenubi</option>
+</optgroup>
+</select></div>
+</div>
+<div class="form-group"><label>Mode</label><select id="s-USE_GEMINI_REALTIME"><option value="true">Gemini Live (realtime)</option><option value="false">Pipeline (STT+LLM+TTS)</option></select></div>
+<button class="btn btn-primary" onclick="saveGroup('gemini')">Save Gemini</button>
+</div>
+
+<div class="card"><h2>Vobiz SIP</h2>
+<div class="form-row">
+<div class="form-group"><label>SIP Domain</label><input id="s-VOBIZ_SIP_DOMAIN"/></div>
+<div class="form-group"><label>Username</label><input id="s-VOBIZ_USERNAME"/></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Password</label><div class="input-wrap"><input id="s-VOBIZ_PASSWORD" type="password"/><button class="eye-toggle" onclick="toggleEye('s-VOBIZ_PASSWORD')">&#x1F441;</button></div></div>
+<div class="form-group"><label>Outbound Number</label><input id="s-VOBIZ_OUTBOUND_NUMBER"/></div>
+</div>
+<div class="form-group"><label>Trunk ID</label><input id="s-OUTBOUND_TRUNK_ID" placeholder="Auto-created or manual"/></div>
+<div style="display:flex;gap:8px">
+<button class="btn btn-primary" onclick="saveGroup('vobiz')">Save Vobiz</button>
+<button class="btn btn-warn" onclick="createSIPTrunk()">&#x26A1; Create SIP Trunk in LiveKit</button>
+</div>
+</div>
+
+<div class="card"><h2>Twilio SMS (optional)</h2>
+<div class="form-row">
+<div class="form-group"><label>Account SID</label><input id="s-TWILIO_ACCOUNT_SID"/></div>
+<div class="form-group"><label>Auth Token</label><div class="input-wrap"><input id="s-TWILIO_AUTH_TOKEN" type="password"/><button class="eye-toggle" onclick="toggleEye('s-TWILIO_AUTH_TOKEN')">&#x1F441;</button></div></div>
+</div>
+<div class="form-group"><label>From Number</label><input id="s-TWILIO_FROM_NUMBER"/></div>
+<button class="btn btn-primary" onclick="saveGroup('twilio')">Save Twilio</button>
+</div>
+
+<div class="card"><h2>S3 Recordings (optional)</h2>
+<div class="form-row">
+<div class="form-group"><label>Access Key</label><input id="s-S3_ACCESS_KEY_ID"/></div>
+<div class="form-group"><label>Secret Key</label><div class="input-wrap"><input id="s-S3_SECRET_ACCESS_KEY" type="password"/><button class="eye-toggle" onclick="toggleEye('s-S3_SECRET_ACCESS_KEY')">&#x1F441;</button></div></div>
+</div>
+<div class="form-row">
+<div class="form-group"><label>Endpoint URL</label><input id="s-S3_ENDPOINT_URL"/></div>
+<div class="form-group"><label>Region</label><input id="s-S3_REGION" value="ap-northeast-1"/></div>
+</div>
+<div class="form-group"><label>Bucket</label><input id="s-S3_BUCKET"/></div>
+<button class="btn btn-primary" onclick="saveGroup('s3')">Save S3</button>
+</div>
+
+<div class="card"><h2>Cal.com (optional)</h2>
+<div class="form-row">
+<div class="form-group"><label>API Key</label><div class="input-wrap"><input id="s-CALCOM_API_KEY" type="password"/><button class="eye-toggle" onclick="toggleEye('s-CALCOM_API_KEY')">&#x1F441;</button></div></div>
+<div class="form-group"><label>Event Type ID</label><input id="s-CALCOM_EVENT_TYPE_ID"/></div>
+</div>
+<div class="form-group"><label>Timezone</label><input id="s-CALCOM_TIMEZONE" value="Asia/Kolkata"/></div>
+<button class="btn btn-primary" onclick="saveGroup('calcom')">Save Cal.com</button>
+</div>
+</div>
+
+<!-- LOGS TAB -->
+<div id="tab-logs" class="tab-panel">
+<div class="card">
+<h2>System Logs</h2>
+<div class="form-row" style="margin-bottom:12px">
+<div class="form-group"><label>Level</label><select id="log-level" onchange="loadLogs()"><option value="">All</option><option value="info">Info</option><option value="warning">Warning</option><option value="error">Error</option></select></div>
+<div class="form-group"><label>Source</label><select id="log-source" onchange="loadLogs()"><option value="">All</option><option value="agent">Agent</option><option value="server">Server</option></select></div>
+<div class="form-group" style="display:flex;align-items:flex-end;gap:8px">
+<button class="btn btn-danger btn-sm" onclick="clearLogs()">Clear All</button>
+<button class="btn btn-secondary btn-sm" id="log-pause-btn" onclick="toggleLogPause()">Pause</button>
+</div>
+</div>
+<div id="log-entries" style="max-height:500px;overflow-y:auto"></div>
+</div>
+</div>
+
+<!-- SETUP TAB -->
+<div id="tab-setup" class="tab-panel">
+<div class="card">
+<h2>Quick Start Guide</h2>
+<ol style="padding-left:20px;line-height:2;color:var(--text2)">
+<li>Run <code>supabase_schema.sql</code> in Supabase Dashboard &rarr; SQL Editor</li>
+<li>Go to <strong>Settings</strong> &rarr; fill LiveKit, Gemini, Vobiz credentials &rarr; Save each</li>
+<li>Click <strong>Create SIP Trunk in LiveKit</strong> in Vobiz section</li>
+<li>Go to <strong>AI Prompt</strong> &rarr; customize for your business &rarr; Save</li>
+<li>Go to <strong>Agents</strong> &rarr; create a profile with your business prompt</li>
+<li>Go to <strong>Single Call</strong> &rarr; test with your own number</li>
+<li>Hear the AI speak within 5-10 seconds!</li>
+</ol>
+</div>
+<div class="card">
+<h2>Cost Breakdown</h2>
+<table>
+<thead><tr><th>Service</th><th>Cost/min</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Vobiz SIP</td><td>~1.00 INR</td><td>Fixed telephony</td></tr>
+<tr><td>LiveKit Cloud</td><td>~0.17 INR</td><td>Free tier: 100k min/mo</td></tr>
+<tr><td>Gemini Live</td><td>~0.03 INR</td><td>Free tier covers most</td></tr>
+<tr><td><strong>Total</strong></td><td><strong>~1.20 INR/min</strong></td><td>~2.40 INR per 2-min call</td></tr>
+</tbody>
+</table>
+</div>
+</div>
+
+</div><!-- /container -->
+
+<div class="toast-container" id="toast-container"></div>
+
+<script>
+const $=id=>document.getElementById(id);
+const api=(path,opts)=>fetch(path,opts).then(r=>{if(!r.ok)throw r;return r.json()}).catch(async e=>{if(e.json){const d=await e.json();throw new Error(d.detail||JSON.stringify(d))}throw e});
+const apiPost=(path,body)=>fetch(path,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.detail||JSON.stringify(d));return d});
+const apiDel=path=>fetch(path,{method:'DELETE'}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.detail||JSON.stringify(d));return d});
+const apiPatch=(path,body)=>fetch(path,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(async r=>{const d=await r.json();if(!r.ok)throw new Error(d.detail||JSON.stringify(d));return d});
+
+function toast(msg,type='ok'){const c=$('toast-container');const t=document.createElement('div');t.className='toast '+type;t.textContent=msg;c.appendChild(t);setTimeout(()=>t.remove(),4000)}
+function outcomeBadge(o){const m={booked:'badge-green',not_interested:'badge-red',wrong_number:'badge-yellow',voicemail:'badge-blue',no_answer:'badge-gray',callback_requested:'badge-yellow'};return `<span class="badge ${m[o]||'badge-gray'}">${o||'unknown'}</span>`}
+
+function switchTab(name){
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.remove('active'));
+  const panel=$('tab-'+name);if(panel)panel.classList.add('active');
+  const btn=document.querySelector(`nav button[data-tab="${name}"]`);if(btn)btn.classList.add('active');
+  if(name==='stats')loadStats();
+  if(name==='calls')loadCalls();
+  if(name==='appointments')loadAppointments();
+  if(name==='campaigns')loadCampaigns();
+  if(name==='agents')loadAgentProfiles();
+  if(name==='prompt')loadPrompt();
+  if(name==='crm')loadCRM();
+  if(name==='settings')loadSettings();
+  if(name==='logs')loadLogs();
+}
+
+/* ── Charts ── */
+let charts={};
+function _mkChart(id,type,data,options={}){if(charts[id]){charts[id].destroy()}const ctx=$(id).getContext('2d');charts[id]=new Chart(ctx,{type,data,options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#aaa',font:{size:11}}}},scales:type==='doughnut'?{}:{x:{ticks:{color:'#666'},grid:{color:'#222'}},y:{ticks:{color:'#666'},grid:{color:'#222'}}},...options}})}
+function _renderCharts(d){
+  const oLabels=Object.keys(d.outcomes||{});const oData=Object.values(d.outcomes||{});
+  const colors=['#00ff88','#ff4d4d','#ffaa00','#00ccff','#888','#ff88ff','#88ff00'];
+  _mkChart('chart-outcomes','doughnut',{labels:oLabels,datasets:[{data:oData,backgroundColor:colors.slice(0,oLabels.length),borderWidth:0}]});
+  const tLabels=(d.timeline||[]).map(t=>t.date.slice(5));const tData=(d.timeline||[]).map(t=>t.count);
+  _mkChart('chart-timeline','line',{labels:tLabels,datasets:[{label:'Calls',data:tData,borderColor:'#00ccff',backgroundColor:'rgba(0,204,255,0.1)',fill:true,tension:0.3}]});
+  const dLabels=Object.keys(d.duration_by_outcome||{});const dData=Object.values(d.duration_by_outcome||{}).map(v=>Math.round(v));
+  _mkChart('chart-duration','bar',{labels:dLabels,datasets:[{label:'Avg Seconds',data:dData,backgroundColor:'#00ff88'}]});
+}
+
+/* ── Stats ── */
+async function loadStats(){
+  try{
+    const d=await api('/api/stats');
+    $('kpi-total').textContent=d.total_calls;$('kpi-booked').textContent=d.booked;
+    $('kpi-not-interested').textContent=d.not_interested;$('kpi-rate').textContent=d.booking_rate_percent+'%';
+    $('kpi-duration').textContent=Math.round(d.avg_duration_seconds)+'s';
+    _renderCharts(d);
+  }catch(e){}
+  try{await loadLiveConfig()}catch(e){}
+}
+async function loadLiveConfig(){
+  const s=await api('/api/settings');const p=await api('/api/prompt');
+  let chips='';
+  const show=(k,label)=>{const v=s[k];const ok=v&&v.configured;chips+=`<span class="chip ${ok?'ok':'warn'}">${label}: ${ok?'configured':'missing'}</span>`};
+  show('LIVEKIT_URL','LiveKit');show('GOOGLE_API_KEY','Gemini');show('OUTBOUND_TRUNK_ID','SIP Trunk');show('VOBIZ_SIP_DOMAIN','Vobiz');
+  const model=s.GEMINI_MODEL&&s.GEMINI_MODEL.value?s.GEMINI_MODEL.value:'gemini-3.1-flash-live-preview';
+  const voice=s.GEMINI_TTS_VOICE&&s.GEMINI_TTS_VOICE.value?s.GEMINI_TTS_VOICE.value:'Aoede';
+  chips+=`<span class="chip ok">Model: ${model}</span><span class="chip ok">Voice: ${voice}</span>`;
+  chips+=`<span class="chip ${p.is_custom?'ok':'warn'}">Prompt: ${p.is_custom?'custom':'default'}</span>`;
+  $('config-chips').innerHTML=chips;
+}
+
+/* ── Single Call ── */
+async function handleCall(e){
+  e.preventDefault();$('call-status').textContent='Dispatching...';
+  try{
+    const body={phone:$('f-phone').value,lead_name:$('f-lead').value,business_name:$('f-biz').value,service_type:$('f-svc').value};
+    const profile=$('f-agent-profile').value;if(profile)body.agent_profile_id=profile;
+    if($('f-custom-toggle').checked&&$('f-custom-prompt').value)body.system_prompt=$('f-custom-prompt').value;
+    const r=await apiPost('/api/call',body);
+    $('call-status').textContent='Dispatched: '+r.room;toast('Call dispatched to '+body.phone);
+  }catch(e){$('call-status').textContent='Error: '+e.message;toast(e.message,'err')}
+}
+
+/* ── Batch ── */
+let batchContacts=[];
+function parseCSV(){
+  const file=$('bc-file').files[0];if(!file)return toast('Select a CSV file','err');
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const lines=e.target.result.split('\n').filter(l=>l.trim());
+    if(lines.length<2)return toast('CSV must have header + rows','err');
+    const header=lines[0].toLowerCase().split(',').map(h=>h.trim());
+    const pi=header.indexOf('phone'),ni=header.indexOf('lead_name')===-1?header.indexOf('name'):header.indexOf('lead_name');
+    const bi=header.indexOf('business_name')===-1?header.indexOf('business'):header.indexOf('business_name');
+    const si=header.indexOf('service_type')===-1?header.indexOf('service'):header.indexOf('service_type');
+    if(pi===-1)return toast('CSV must have "phone" column','err');
+    batchContacts=[];let html='';
+    for(let i=1;i<lines.length;i++){
+      const cols=lines[i].split(',').map(c=>c.trim());if(!cols[pi])continue;
+      const c={phone:cols[pi],lead_name:ni>=0?cols[ni]:'there',business_name:bi>=0?cols[bi]:'our company',service_type:si>=0?cols[si]:'our service'};
+      batchContacts.push(c);
+      html+=`<tr><td>${c.phone}</td><td>${c.lead_name}</td><td>${c.business_name}</td><td>${c.service_type}</td></tr>`;
+    }
+    $('bc-tbody').innerHTML=html;$('bc-preview').classList.remove('hidden');
+    toast(`Parsed ${batchContacts.length} contacts`);
+  };reader.readAsText(file);
+}
+async function startBatch(){
+  if(!batchContacts.length)return toast('Parse CSV first','err');
+  const delay=parseInt($('bc-delay').value)||3;const profile=$('bc-agent-profile').value;
+  let ok=0,fail=0;
+  for(let i=0;i<batchContacts.length;i++){
+    $('bc-status').textContent=`Calling ${i+1}/${batchContacts.length}...`;
+    $('bc-progress').style.width=Math.round((i+1)/batchContacts.length*100)+'%';
+    try{
+      const body={...batchContacts[i]};if(profile)body.agent_profile_id=profile;
+      await apiPost('/api/call',body);ok++;
+    }catch(e){fail++}
+    if(i<batchContacts.length-1)await new Promise(r=>setTimeout(r,delay*1000));
+  }
+  $('bc-status').textContent=`Done: ${ok} dispatched, ${fail} failed`;toast(`Batch done: ${ok} ok, ${fail} failed`);
+}
+
+/* ── Campaigns ── */
+async function loadCampaigns(){
+  try{
+    const rows=await api('/api/campaigns');
+    $('camp-tbody').innerHTML=rows.map(c=>{
+      const contacts=JSON.parse(c.contacts_json||'[]');
+      const statusBadge=c.status==='active'?'badge-green':c.status==='completed'?'badge-blue':'badge-yellow';
+      return `<tr><td>${c.name}</td><td>${c.schedule_type} @ ${c.schedule_time||''}</td><td>${contacts.length}</td>
+      <td><span class="badge ${statusBadge}">${c.status}</span></td><td>${c.total_dispatched||0}</td><td>${c.total_failed||0}</td>
+      <td><button class="btn btn-primary btn-sm" onclick="runCampaign('${c.id}','${c.name}')">Run</button>
+      <button class="btn btn-secondary btn-sm" onclick="toggleCampaignStatus('${c.id}','${c.status==='active'?'paused':'active'}')">${c.status==='active'?'Pause':'Resume'}</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteCampaign('${c.id}','${c.name}')">Del</button></td></tr>`;
+    }).join('');
+  }catch(e){toast(e.message,'err')}
+}
+async function createCampaign(){
+  const file=$('camp-file').files[0];if(!file)return toast('Select CSV','err');
+  const text=await file.text();const lines=text.split('\n').filter(l=>l.trim());
+  if(lines.length<2)return toast('CSV needs header+rows','err');
+  const header=lines[0].toLowerCase().split(',').map(h=>h.trim());
+  const pi=header.indexOf('phone');if(pi===-1)return toast('CSV needs phone column','err');
+  const ni=header.includes('lead_name')?header.indexOf('lead_name'):header.indexOf('name');
+  const bi=header.includes('business_name')?header.indexOf('business_name'):header.indexOf('business');
+  const si=header.includes('service_type')?header.indexOf('service_type'):header.indexOf('service');
+  const contacts=[];
+  for(let i=1;i<lines.length;i++){const cols=lines[i].split(',').map(c=>c.trim());if(!cols[pi])continue;contacts.push({phone:cols[pi],lead_name:ni>=0?cols[ni]:'there',business_name:bi>=0?cols[bi]:'our company',service_type:si>=0?cols[si]:'our service'})}
+  const body={name:$('camp-name').value||'Campaign',contacts,schedule_type:$('camp-schedule').value,schedule_time:$('camp-time').value,call_delay_seconds:parseInt($('camp-delay').value)||3};
+  const profile=$('camp-agent-profile').value;if(profile)body.agent_profile_id=profile;
+  if($('camp-prompt-toggle').checked&&$('camp-prompt').value)body.system_prompt=$('camp-prompt').value;
+  try{await apiPost('/api/campaigns',body);toast('Campaign created');loadCampaigns()}catch(e){toast(e.message,'err')}
+}
+window.runCampaign=async(id,name)=>{if(!confirm(`Run campaign "${name}" now?`))return;try{await apiPost(`/api/campaigns/${id}/run`,{});toast('Campaign running')}catch(e){toast(e.message,'err')}};
+window.toggleCampaignStatus=async(id,newStatus)=>{try{await apiPatch(`/api/campaigns/${id}/status`,{status:newStatus});toast('Status: '+newStatus);loadCampaigns()}catch(e){toast(e.message,'err')}};
+window.deleteCampaign=async(id,name)=>{if(!confirm(`Delete "${name}"?`))return;try{await apiDel(`/api/campaigns/${id}`);toast('Deleted');loadCampaigns()}catch(e){toast(e.message,'err')}};
+
+/* ── Agent Profiles ── */
+async function loadAgentProfiles(){
+  try{
+    const raw=await api('/api/agent-profiles');const profiles=Array.isArray(raw)?raw:[];
+    $('ap-tbody').innerHTML=profiles.length?profiles.map(p=>`<tr>
+      <td>${p.name}</td><td>${p.voice}</td><td style="font-size:11px">${p.model}</td>
+      <td>${p.is_default?'<span class="badge badge-green">Default</span>':''}</td>
+      <td><button class="btn btn-secondary btn-sm" onclick="editAgentProfile('${p.id}')">Edit</button>
+      <button class="btn btn-primary btn-sm" onclick="setDefaultAgentProfile('${p.id}','${p.name}')">Set Default</button>
+      <button class="btn btn-danger btn-sm" onclick="deleteAgentProfile('${p.id}','${p.name}')">Del</button></td></tr>`).join(''):'<tr><td colspan="5" class="empty-state">No profiles yet</td></tr>';
+    // Populate all 3 dropdowns
+    const optHtml=profiles.map(p=>`<option value="${p.id}">${p.name}${p.is_default?' (default)':''}</option>`).join('');
+    ['f-agent-profile','bc-agent-profile','camp-agent-profile'].forEach(id=>{
+      const el=$(id);if(!el)return;const val=el.value;
+      el.innerHTML='<option value="">Default (no profile)</option>'+optHtml;el.value=val;
+    });
+  }catch(e){}
+}
+window.saveAgentProfile=async()=>{
+  const editId=$('ap-edit-id').value;
+  const body={name:$('ap-name').value,voice:$('ap-voice').value,model:$('ap-model').value,system_prompt:$('ap-prompt').value||null,enabled_tools:$('ap-tools').value||'[]',is_default:$('ap-default').checked};
+  if(!body.name)return toast('Name required','err');
+  try{
+    if(editId){await fetch(`/api/agent-profiles/${editId}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).then(r=>r.json());toast('Profile updated')}
+    else{await apiPost('/api/agent-profiles',body);toast('Profile created')}
+    resetAgentForm();loadAgentProfiles();
+  }catch(e){toast(e.message,'err')}
+};
+window.editAgentProfile=async(id)=>{
+  try{const p=await api(`/api/agent-profiles/${id}`);$('ap-edit-id').value=id;$('ap-name').value=p.name;$('ap-voice').value=p.voice;$('ap-model').value=p.model;$('ap-prompt').value=p.system_prompt||'';$('ap-tools').value=p.enabled_tools||'[]';$('ap-default').checked=!!p.is_default;$('agent-form-title').textContent='Edit: '+p.name}catch(e){toast(e.message,'err')}
+};
+window.deleteAgentProfile=async(id,name)=>{if(!confirm(`Delete "${name}"?`))return;try{await apiDel(`/api/agent-profiles/${id}`);toast('Deleted');loadAgentProfiles()}catch(e){toast(e.message,'err')}};
+window.setDefaultAgentProfile=async(id,name)=>{try{await apiPost(`/api/agent-profiles/${id}/set-default`,{});toast(name+' set as default');loadAgentProfiles()}catch(e){toast(e.message,'err')}};
+window.resetAgentForm=()=>{$('ap-edit-id').value='';$('ap-name').value='';$('ap-voice').value='Aoede';$('ap-model').value='gemini-3.1-flash-live-preview';$('ap-prompt').value='';$('ap-tools').value='[]';$('ap-default').checked=false;$('agent-form-title').textContent='Create Agent Profile'};
+
+/* ── Prompt ── */
+async function loadPrompt(){try{const d=await api('/api/prompt');$('prompt-editor').value=d.prompt;$('prompt-chars').textContent=d.prompt.length}catch(e){}}
+$('prompt-editor')&&$('prompt-editor').addEventListener('input',function(){$('prompt-chars').textContent=this.value.length});
+window.savePrompt=async()=>{try{await apiPost('/api/prompt',{prompt:$('prompt-editor').value});toast('Prompt saved')}catch(e){toast(e.message,'err')}};
+window.resetPrompt=async()=>{if(!confirm('Reset to default prompt?'))return;try{const d=await apiDel('/api/prompt');$('prompt-editor').value=d.prompt;$('prompt-chars').textContent=d.prompt.length;toast('Reset to default')}catch(e){toast(e.message,'err')}};
+
+/* ── Appointments ── */
+async function loadAppointments(){
+  try{
+    const date=$('appt-date').value;const url=date?`/api/appointments?date=${date}`:'/api/appointments';
+    const rows=await api(url);
+    $('appt-tbody').innerHTML=rows.length?rows.map(a=>`<tr><td>${a.name}</td><td>${a.phone}</td><td>${a.date}</td><td>${a.time}</td><td>${a.service}</td>
+    <td>${outcomeBadge(a.status)}</td>
+    <td>${a.status==='booked'?`<button class="btn btn-danger btn-sm" onclick="cancelAppointment('${a.id}')">Cancel</button>`:''}</td></tr>`).join(''):'<tr><td colspan="7" class="empty-state">No appointments</td></tr>';
+  }catch(e){toast(e.message,'err')}
+}
+window.cancelAppointment=async(id)=>{if(!confirm('Cancel this appointment?'))return;try{await apiDel(`/api/appointments/${id}`);toast('Cancelled');loadAppointments()}catch(e){toast(e.message,'err')}};
+
+/* ── Call Logs ── */
+let callsPage=1;
+async function loadCalls(page=1){
+  if(page<1)page=1;callsPage=page;
+  try{
+    const rows=await api(`/api/calls?page=${page}&limit=20`);
+    $('calls-tbody').innerHTML=rows.length?rows.map(c=>`<tr><td>${c.phone_number}</td><td>${c.lead_name||''}</td>
+    <td>${outcomeBadge(c.outcome)}</td><td style="max-width:150px;overflow:hidden;text-overflow:ellipsis">${c.reason||''}</td>
+    <td>${c.duration_seconds||0}s</td><td style="font-size:11px">${(c.timestamp||'').replace('T',' ').slice(0,19)}</td>
+    <td>${c.recording_url?`<a href="${c.recording_url}" target="_blank">Play</a>`:'-'}</td>
+    <td><input style="width:120px;font-size:11px" value="${(c.notes||'').replace(/"/g,'&quot;')}" onchange="saveNotes('${c.id}',this.value)"/></td></tr>`).join(''):'<tr><td colspan="8" class="empty-state">No calls yet</td></tr>';
+    $('calls-page-info').textContent='Page '+page;
+    $('calls-prev').disabled=page<=1;$('calls-next').disabled=rows.length<20;
+  }catch(e){toast(e.message,'err')}
+}
+window.saveNotes=async(id,notes)=>{try{await apiPatch(`/api/calls/${id}/notes`,{notes});toast('Notes saved')}catch(e){toast(e.message,'err')}};
+
+/* ── CRM ── */
+async function loadCRM(){
+  try{
+    const d=await api('/api/crm');const rows=d.data||[];
+    $('crm-list-card').classList.remove('hidden');$('crm-detail-card').classList.add('hidden');
+    $('crm-tbody').innerHTML=rows.length?rows.map(c=>`<tr style="cursor:pointer" onclick="loadContactDetail('${c.phone_number}')">
+    <td>${c.phone_number}</td><td>${c.lead_name||''}</td><td>${c.total_calls}</td><td>${c.booked}</td>
+    <td>${outcomeBadge(c.last_outcome)}</td><td style="font-size:11px">${(c.last_call||'').slice(0,16)}</td></tr>`).join(''):'<tr><td colspan="6" class="empty-state">No contacts yet</td></tr>';
+  }catch(e){toast(e.message,'err')}
+}
+window.loadContactDetail=async(phone)=>{
+  try{
+    const d=await api(`/api/crm/calls?phone=${encodeURIComponent(phone)}`);const rows=d.data||[];
+    $('crm-list-card').classList.add('hidden');$('crm-detail-card').classList.remove('hidden');
+    $('crm-detail-title').textContent='Call History: '+phone;
+    $('crm-detail-tbody').innerHTML=rows.map(c=>`<tr><td>${outcomeBadge(c.outcome)}</td><td>${c.reason||''}</td>
+    <td>${c.duration_seconds||0}s</td><td style="font-size:11px">${(c.timestamp||'').replace('T',' ').slice(0,19)}</td>
+    <td>${c.notes||'-'}</td></tr>`).join('');
+  }catch(e){toast(e.message,'err')}
+};
+function closeCRMDetail(){$('crm-list-card').classList.remove('hidden');$('crm-detail-card').classList.add('hidden')}
+
+/* ── Settings ── */
+const settingGroups={
+  livekit:['LIVEKIT_URL','LIVEKIT_API_KEY','LIVEKIT_API_SECRET'],
+  gemini:['GOOGLE_API_KEY','GEMINI_MODEL','GEMINI_TTS_VOICE','USE_GEMINI_REALTIME'],
+  vobiz:['VOBIZ_SIP_DOMAIN','VOBIZ_USERNAME','VOBIZ_PASSWORD','VOBIZ_OUTBOUND_NUMBER','OUTBOUND_TRUNK_ID'],
+  twilio:['TWILIO_ACCOUNT_SID','TWILIO_AUTH_TOKEN','TWILIO_FROM_NUMBER'],
+  s3:['S3_ACCESS_KEY_ID','S3_SECRET_ACCESS_KEY','S3_ENDPOINT_URL','S3_REGION','S3_BUCKET'],
+  calcom:['CALCOM_API_KEY','CALCOM_EVENT_TYPE_ID','CALCOM_TIMEZONE'],
+};
+async function loadSettings(){
+  try{
+    const s=await api('/api/settings');
+    for(const[k,v]of Object.entries(s)){
+      const el=$('s-'+k);if(!el)continue;
+      if(el.type==='password'){el.value='';el.placeholder=v.configured?'(configured - leave blank to keep)':'(not set)'}
+      else{el.value=v.value||''}
+    }
+  }catch(e){}
+}
+async function saveGroup(group){
+  const keys=settingGroups[group]||[];const settings={};
+  keys.forEach(k=>{const el=$('s-'+k);if(el&&el.value)settings[k]=el.value});
+  if(!Object.keys(settings).length)return toast('Nothing to save','err');
+  try{await apiPost('/api/settings',{settings});toast(group+' saved');loadSettings()}catch(e){toast(e.message,'err')}
+}
+function toggleEye(id){const el=$(id);el.type=el.type==='password'?'text':'password'}
+window.createSIPTrunk=async()=>{
+  try{const d=await apiPost('/api/setup/trunk',{});toast('SIP Trunk created: '+d.trunk_id);loadSettings()}catch(e){toast(e.message,'err')}
+};
+
+/* ── Logs ── */
+let logsPaused=false;let logsInterval=null;
+async function loadLogs(){
+  if(logsPaused)return;
+  try{
+    const level=$('log-level').value;const source=$('log-source').value;
+    let url='/api/logs?limit=200';if(level)url+=`&level=${level}`;if(source)url+=`&source=${source}`;
+    const rows=await api(url);
+    $('log-entries').innerHTML=rows.map(l=>`<div class="log-entry ${l.level}"><span style="color:var(--muted)">${(l.timestamp||'').replace('T',' ').slice(0,19)}</span> <span class="badge badge-${l.level==='error'?'red':l.level==='warning'?'yellow':'gray'}" style="font-size:10px">${l.level}</span> [${l.source}] ${l.message}${l.detail?` <span style="color:var(--muted)">${l.detail}</span>`:''}</div>`).join('');
+  }catch(e){}
+}
+async function clearLogs(){if(!confirm('Clear all logs?'))return;try{await apiDel('/api/logs');toast('Logs cleared');loadLogs()}catch(e){toast(e.message,'err')}}
+function toggleLogPause(){logsPaused=!logsPaused;$('log-pause-btn').textContent=logsPaused?'Resume':'Pause'}
+function scheduleLogsRefresh(){logsInterval=setInterval(()=>{if(!logsPaused&&$('tab-logs').classList.contains('active'))loadLogs()},5000)}
+
+/* ── Init ── */
+function init(){
+  loadStats();loadCalls();loadAppointments();loadAgentProfiles();
+  setInterval(loadStats,10000);
+  scheduleLogsRefresh();
+}
+document.addEventListener('DOMContentLoaded',init);
+</script>
+</body>
+</html>
